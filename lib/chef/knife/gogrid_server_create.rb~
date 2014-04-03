@@ -21,7 +21,7 @@ require 'chef/knife/gogrid_base'
 class Chef
   class Knife
     class GogridServerCreate < Knife
-        include Knife::GogridBase
+
       banner "knife gogrid server create (options)"
 
       option :ip,
