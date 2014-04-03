@@ -1,5 +1,5 @@
 #
-# Author:: Steve Lum (<steve.lum@gmail.com>)
+# Author:: Steve Lum (<steve.lum@gmail.com>), Rajthilak (<rajthilak@megam.co.in>)
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,7 +34,7 @@ class Chef
         require 'net/ssh/multi'
         require 'readline'
 
-        connection = Fog::GoGrid::Compute.new(
+        connection = Fog::Compute::GoGrid.new(
           :go_grid_api_key => Chef::Config[:knife][:go_grid_api_key],
           :go_grid_shared_secret => Chef::Config[:knife][:go_grid_shared_secret]
         )

@@ -1,5 +1,5 @@
 #
-# Author:: Steve Lum (<steve.lum@gmail.com>)
+# Author:: Steve Lum (<steve.lum@gmail.com>), Rajthilak (<rajthilak@megam.co.in>)
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,12 +22,12 @@ class Chef
   class Knife
     class GogridServerCreate < Knife
 
-      banner "knife gogrid server create [RUN LIST...] (options)"
+      banner "knife gogrid server create (options)"
 
-      option :address,
-        :short => "-a IP_ADDRESS",
-        :long => "--address IP_ADDRESS",
-        :description => "The ip address of server"
+      option :ip,
+        :short => "-a PUBLIC_IP_ADDRESS",
+        :long => "--address PUBLIC_IP_ADDRESS",
+        :description => "The public ip address of server"
 #        :proc => Proc.new { |f| f.to_i },
 
       option :image,
@@ -36,9 +36,9 @@ class Chef
         :description => "The image of the server"
 #        :proc => Proc.new { |i| i.to_i },
 
-      option :server_name,
+      option :name,
         :short => "-N NAME",
-        :long => "--server-name NAME",
+        :long => "--name NAME",
         :description => "The server name"
 
       option :memory,
@@ -54,7 +54,7 @@ class Chef
         :proc => Proc.new { |key| Chef::Config[:knife][:go_grid_api_key] = key } 
 
       option :go_grid_shared_secret,
-        :short => "-A USERNAME",
+        :short => "-A SHARED_SECRET",
         :long => "--go-grid-shared-secret SHARED_SECRET",
         :description => "Your GoGrid API Shared Secret",
         :proc => Proc.new { |username| Chef::Config[:knife][:go_grid_shared_secret] = shared_secret} 
@@ -63,12 +63,18 @@ class Chef
         :short => "-d DISTRO",
         :long => "--distro DISTRO",
         :description => "Bootstrap a distro using a template",
-        :default => "centos5-gems"
+        :default => "chef-full"
 
       option :template_file,
         :long => "--template-file TEMPLATE",
         :description => "Full path to location of template to use",
         :default => false
+
+      option :run_list,
+        :short => "-r RUN_LIST",
+        :long => "--run-list RUN_LIST",
+        :description => "Comma separated list of roles/recipes to apply",
+        :proc => lambda { |o| o.split(/[\s,]+/) }
 
       def h
         @highline ||= HighLine.new
@@ -99,16 +105,16 @@ class Chef
         require 'net/ssh/multi'
         require 'readline'
 
-        connection = Fog::GoGrid::Compute.new(
+        connection = Fog::Compute::GoGrid.new(
           :go_grid_api_key => Chef::Config[:knife][:go_grid_api_key],
           :go_grid_shared_secret => Chef::Config[:knife][:go_grid_shared_secret] 
         )
+  options = {}
+	server = connection.grid_server_add( config[:image], config[:ip], config[:name], config[:memory], options)
 
-	server = connection.grid_server_add( config[:image], config[:address], config[:server_name], config[:memory])
-
-	server1_ip = config[:address]
+	server1_ip = config[:ip]
 	server1_image_id = config[:image]
-	server1_name = config[:server_name]
+	server1_name = config[:name]
 	server1_memory = config[:memory]
 
 	$stdout.sync = true
@@ -134,7 +140,7 @@ class Chef
         print(".") until tcp_test_ssh(server1_ip) { sleep @initial_sleep_delay ||= 10; puts("done") }
 
 	connection.servers.each do |s|
-	  if s.name == (config[:server_name])
+	  if s.name == (config[:name])
 		@server_id = s.id
 	  end
 	end
@@ -161,18 +167,17 @@ class Chef
       end
 
       def bootstrap_for_node(server)
-	@public_ip = (config[:address])
+	@public_ip = (config[:ip])
 	bootstrap = Chef::Knife::Bootstrap.new
 	bootstrap.name_args = [ @public_ip ]
-        bootstrap.config[:run_list] = @name_args
+        bootstrap.config[:run_list] = config[:run_list]
         bootstrap.config[:ssh_user] = "root"
         bootstrap.config[:ssh_password] = @root_passwd
         bootstrap.config[:identity_file] = config[:identity_file]
-        bootstrap.config[:chef_node_name] = config[:server_name] || server.id
+        bootstrap.config[:chef_node_name] = config[:name] || server.id
         bootstrap.config[:use_sudo] = false
         bootstrap.config[:distro] = config[:distro]
-        bootstrap.config[:template_file] = config[:template_file]
-        bootstrap.config[:environment] = config[:environment]
+        bootstrap.config[:template_file] = config[:template_file]        
 	bootstrap
       end
     end
