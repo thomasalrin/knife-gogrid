@@ -70,6 +70,12 @@ class Chef
         :description => "Full path to location of template to use",
         :default => false
 
+     option :public_key_file,
+        :short => "-k PUBLIC_KEY_FILE",
+        :long => "--public-key-file PUBLIC_KEY_FILE",
+        :description => "The SSH public key file to be added to the authorized_keys of the given user, default is '~/.ssh/id_rsa.pub'",
+        :default => "#{File.expand_path('~')}/.ssh/id_rsa.pub"
+
       option :run_list,
         :short => "-r RUN_LIST",
         :long => "--run-list RUN_LIST",
@@ -78,6 +84,26 @@ class Chef
 
       def h
         @highline ||= HighLine.new
+      end
+
+      def upload_ssh_key
+        ## SSH Key
+        ssh_key = begin
+          File.open(locate_config_value(:public_key_file)).read.gsub(/\n/,'')
+        rescue Exception => e
+          ui.error(e.message)
+          ui.error("Could not read the provided public ssh key, check the public_key_file config.")
+          exit 1
+        end
+
+        dot_ssh_path = if locate_config_value(:ssh_user) != 'root'
+          ssh("useradd #{locate_config_value(:ssh_user)} -G sudo -m").run
+          "/home/#{locate_config_value(:ssh_user)}/.ssh"
+        else
+          "/root/.ssh"
+        end
+        ssh("mkdir -p #{dot_ssh_path} && echo \"#{ssh_key}\" > #{dot_ssh_path}/authorized_keys && chmod -R go-rwx #{dot_ssh_path}").run
+        puts ui.color("Added the ssh key to the authorized_keys of #{locate_config_value(:ssh_user)}", :green)
       end
 
       def tcp_test_ssh(hostname)
@@ -110,7 +136,7 @@ class Chef
           :go_grid_shared_secret => Chef::Config[:knife][:go_grid_shared_secret]
         )
   options = {}
-	server = connection.grid_server_add( config[:image], config[:ip], config[:name], config[:memory], options)
+	server = connection.grid_server_add(config[:image], config[:ip], config[:name], config[:memory], options)
 
 	server1_ip = config[:ip]
 	server1_image_id = config[:image]
@@ -154,9 +180,9 @@ class Chef
 	    end
           end
         end
-
+       
         bootstrap_for_node(server).run
-
+        upload_ssh_key
         puts "#{h.color("Hostname", :cyan)}: #{server1_name}"
         puts "#{h.color("IP Address", :cyan)}: #{server1_ip}"
         puts "#{h.color("Server Image", :cyan)}: #{server1_image_id}"
