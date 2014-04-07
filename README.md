@@ -32,7 +32,7 @@ You also have the option of passing your GoGrid API options from the command lin
     `-K` (or `--go-grid-api-key`) your GoGrid API Key
     `-A` (or `--go-grid-shared-secret`) your GoGrid Shared Secret
 
-    knife gogrid server create -A 'MyUsername' -K 'MyPassword' -i 14767 -r 'role[webserver]' -N server-name -a public-ip
+    knife gogrid server create -K 'MyAPIKey' -A 'Shared-Secret' -i 14767 -r 'role[webserver]' -N server-name -a public-ip-address -R 512MB
 
 
 # Subcommands #
@@ -44,7 +44,7 @@ knife gogrid server create
 
 Provisions a new server in the GoGrid and then perform a Chef bootstrap (using the SSH protocol). The goal of the bootstrap is to get Chef installed on the target system so it can run Chef Client with a Chef Server. The main assumption is a baseline OS installation exists (provided by the provisioning). It is primarily intended for Chef Client systems that talk to a Chef Server. By default the server is bootstrapped using the [chef-full](https://github.com/opscode/chef/blob/master/chef/lib/chef/knife/bootstrap/chef-full.erb) template. This can be overridden using the `-d` or `--template-file` command options. If you do not pass a node name with `-N NAME` (or `--node-name NAME`) a name will be generated for the node.
 
-    knife gogrid server create  -i 14767 -r 'role[webserver]' -N server-name -a public-ip
+    knife gogrid server create  -i 14767 -r 'role[webserver]' -N server-name -a public-ip-address -R 512MB
 
 knife gogrid server delete
 ----------------------
