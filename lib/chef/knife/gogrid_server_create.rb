@@ -17,11 +17,11 @@
 
 require 'chef/knife'
 require 'json'
-require 'chef/knife/gogrid_base'
+
 class Chef
   class Knife
     class GogridServerCreate < Knife
-        include Knife::GogridBase
+
       banner "knife gogrid server create (options)"
 
       option :ip,
@@ -45,7 +45,19 @@ class Chef
         :short => "-R RAM",
         :long => "--server-memory RAM",
         :description => "Server RAM amount",
-        :default => "1GB"      
+        :default => "1GB"
+
+      option :go_grid_api_key,
+        :short => "-A KEY",
+        :long => "--go-grid-api-key KEY",
+        :description => "Your GoGrid API key",
+        :proc => Proc.new { |key| Chef::Config[:knife][:go_grid_api_key] = key } 
+
+      option :go_grid_shared_secret,
+        :short => "-K SHARED_SECRET",
+        :long => "--go-grid-shared-secret SHARED_SECRET",
+        :description => "Your GoGrid API Shared Secret",
+        :proc => Proc.new { |shared_secret| Chef::Config[:knife][:go_grid_shared_secret] = shared_secret} 
 
       option :distro,
         :short => "-d DISTRO",
@@ -62,19 +74,7 @@ class Chef
         :short => "-r RUN_LIST",
         :long => "--run-list RUN_LIST",
         :description => "Comma separated list of roles/recipes to apply",
-        :proc => lambda { |o| o.split(/[\s,]+/) }       
-
-       option :go_grid_api_key,
-        :short => "-K KEY",
-        :long => "--go-grid-api-key KEY",
-        :description => "Your GoGrid API key",
-        :proc => Proc.new { |key| Chef::Config[:knife][:go_grid_api_key] = key } 
-
-      option :go_grid_shared_secret,
-        :short => "-A SHARED_SECRET",
-        :long => "--go-grid-shared-secret SHARED_SECRET",
-        :description => "Your GoGrid API Shared Secret",
-        :proc => Proc.new { |username| Chef::Config[:knife][:go_grid_shared_secret] = shared_secret} 
+        :proc => lambda { |o| o.split(/[\s,]+/) }
 
       def h
         @highline ||= HighLine.new
@@ -104,49 +104,16 @@ class Chef
         require 'highline'
         require 'net/ssh/multi'
         require 'readline'
-       
-         connection = Fog::Compute::GoGrid.new(
-          :go_grid_api_key => Chef::Config[:knife][:go_grid_api_key] || config[:go_grid_api_key],
-          :go_grid_shared_secret => Chef::Config[:knife][:go_grid_shared_secret] || config[:go_grid_shared_secret]
+
+        connection = Fog::Compute::GoGrid.new(
+          :go_grid_api_key => Chef::Config[:knife][:go_grid_api_key],
+          :go_grid_shared_secret => Chef::Config[:knife][:go_grid_shared_secret]
         )
+  options = {}
+	server = connection.grid_server_add( config[:image], config[:ip], config[:name], config[:memory], options)
 
-        options = {}
-	server = connection.grid_server_add( locate_config_value(:image), locate_config_value(:ip), config[:name], config[:memory], options)        
-
-       def validate!(keys=[:go_grid_api_key, :go_grid_shared_secret])
-          errors = []
-
-          keys.each do |k|
-            pretty_key = k.to_s.gsub(/_/, ' ').gsub(/\w+/){ |w| (w =~ /(ssh)|(hp)/i) ? w.upcase  : w.capitalize }
-          if Chef::Config[:knife][k].nil?
-            errors << "You did not provided a valid '#{pretty_key}' value."
-          end
-        end
-
-        if errors.each{|e| ui.error(e)}.any?
-          exit 1
-        end
-      end
-
-        def image
-         @image ||= connection.grid_image_get(locate_config_value(:image))
-        end
-
-        def validate!       
-
-          if image.nil?
-              ui.error("You have not provided a valid image ID. Please note the options for this value are -I or --image.")
-             exit 1
-          end
-        end
-     
-        def locate_config_value(key)
-           key = key.to_sym
-           Chef::Config[:knife][key] || config[key]
-        end
-
-	server1_ip = locate_config_value(:ip)
-	server1_image_id = locate_config_value(:image)
+	server1_ip = config[:ip]
+	server1_image_id = config[:image]
 	server1_name = config[:name]
 	server1_memory = config[:memory]
 
